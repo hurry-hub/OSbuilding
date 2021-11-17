@@ -212,6 +212,7 @@ LABEL_MEM_CHK_OK:
 	cli
 
 	; 加载 IDTR
+	xchg bx, bx
 	lidt	[IdtPtr]
 
 	; 打开地址线A20

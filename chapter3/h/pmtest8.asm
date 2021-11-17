@@ -338,8 +338,11 @@ PagingDemo:
 
 	call	SetupPaging		; 启动分页
 
+	xchg	bx, bx
 	call	SelectorFlatC:ProcPagingDemo
+	xchg	bx, bx
 	call	PSwitch			; 切换页目录，改变地址映射关系
+	xchg 	bx, bx
 	call	SelectorFlatC:ProcPagingDemo
 
 	ret
@@ -435,7 +438,7 @@ DispMemSize:
 	push	esi
 	push	edi
 	push	ecx
-
+	xchg bx, bx
 	mov	esi, MemChkBuf
 	mov	ecx, [dwMCRNumber]	;for(int i=0;i<[MCRNumber];i++) // 每次得到一个ARDS(Address Range Descriptor Structure)结构
 .loop:					;{

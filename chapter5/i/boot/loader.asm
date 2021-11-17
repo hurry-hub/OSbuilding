@@ -359,11 +359,10 @@ LABEL_PM_START:
 
 	call	DispMemInfo
 	call	SetupPaging
+	call	DispReturn
 
-	;mov	ah, 0Fh				; 0000: 黑底    1111: 白字
-	;mov	al, 'P'
-	;mov	[gs:((80 * 0 + 39) * 2)], ax	; 屏幕第 0 行, 第 39 列。
-
+	; 到此停止
+; --------------------------------------------------------------------------
 	call	InitKernel
 
 	;jmp	$
@@ -371,6 +370,9 @@ LABEL_PM_START:
 	;***************************************************************
 	jmp	SelectorFlatC:KernelEntryPointPhyAddr	; 正式进入内核 *
 	;***************************************************************
+
+
+	
 	; 内存看上去是这样的：
 	;              ┃                                    ┃
 	;              ┃                 .                  ┃
@@ -752,6 +754,8 @@ LABEL_DATA:
 _szMemChkTitle:			db	"BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0
 _szRAMSize:			db	"RAM size:", 0
 _szReturn:			db	0Ah, 0
+_sz1				db	"Linear Addr of pages allocated:", 0
+_sz2				db	"Freed page:", 0
 ;; 变量
 _dwMCRNumber:			dd	0	; Memory Check Result
 _dwDispPos:			dd	(80 * 6 + 0) * 2	; 屏幕第 6 行, 第 0 列。
@@ -762,12 +766,26 @@ _ARDStruct:			; Address Range Descriptor Structure
 	_dwLengthLow:		dd	0
 	_dwLengthHigh:		dd	0
 	_dwType:		dd	0
+_PageTableNumber		dd	0
+_AllocPageBase			dd	0
+_num_of_alloc		dd	3
 _MemChkBuf:	times	256	db	0
+_PhysicalPageBuf: 	times	32 	dd 0		; 这里将会存储找到的可用物理页的基址
+_LinearPageBuf:		times	32	dd 0		; 这里存储要返回的线性地址
+; 位图。调试可知页表共8张，每个页表有1024个PTE，因此共n个页
+; 每页用1位表示分配状态，一共需要8*1024位，即1024字节
+; 我们假设1M以后的物理内存才可用，这就是256个物理页的大小。
+; 因此我们将位图的前256=8*32位置为1，也就是32个字节
+; 剩下的8*992个位，置为0。也就是992个字节
+_BitMap:	times	32		db	11111111b
+			times	992		db	0
 ;
 ;; 保护模式下使用这些符号
 szMemChkTitle		equ	BaseOfLoaderPhyAddr + _szMemChkTitle
 szRAMSize		equ	BaseOfLoaderPhyAddr + _szRAMSize
 szReturn		equ	BaseOfLoaderPhyAddr + _szReturn
+sz1				equ _sz1 - $$
+sz2				equ _sz2 - $$
 dwDispPos		equ	BaseOfLoaderPhyAddr + _dwDispPos
 dwMemSize		equ	BaseOfLoaderPhyAddr + _dwMemSize
 dwMCRNumber		equ	BaseOfLoaderPhyAddr + _dwMCRNumber
@@ -777,8 +795,14 @@ ARDStruct		equ	BaseOfLoaderPhyAddr + _ARDStruct
 	dwLengthLow	equ	BaseOfLoaderPhyAddr + _dwLengthLow
 	dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh
 	dwType		equ	BaseOfLoaderPhyAddr + _dwType
-MemChkBuf		equ	BaseOfLoaderPhyAddr + _MemChkBuf
+PageTableNumber		equ	_PageTableNumber- $$
+AllocPageBase		equ	_AllocPageBase - $$
+num_of_alloc	equ	_num_of_alloc - $$
 
+MemChkBuf		equ	BaseOfLoaderPhyAddr + _MemChkBuf
+PhysicalPageBuf	equ	_PhysicalPageBuf - $$
+LinearPageBuf	equ	_LinearPageBuf - $$
+BitMap			equ _BitMap - $$
 
 ; 堆栈就在数据段的末尾
 StackSpace:	times	1000h	db	0
